@@ -4,7 +4,7 @@ import (
 	sfGraphics "gopkg.in/teh-cmc/go-sfml.v24/graphics"
 	sfWindow "gopkg.in/teh-cmc/go-sfml.v24/window"
 
-	"GOR2VM/PeripheralManager"
+	peripheralmanager "GOR2VM/PeripheralManager"
 )
 
 //FrameBuffer is the framebuffer peripheral struct
@@ -13,20 +13,21 @@ type FrameBuffer struct {
 	OnRX      func(rx uint32)
 	GetTX     func() uint32
 	flushCall bool
-	fps       int64
 
 	videoMode  sfWindow.SfVideoMode
 	csettings  sfWindow.SfContextSettings
 	window     sfGraphics.SfWindow
 	mainbuffer sfGraphics.Struct_SS_sfImage
 	tempbuffer sfGraphics.Struct_SS_sfImage
+
+	registers []uint16 // LS(layer select)/MS(mode select), XR, YR, GPR0, GPR1, GPR2, GPR3, GPR4
 }
 
 //NewFrameBuffer creates a new framebuffer object (This is not the peripheral)
 func NewFrameBuffer(width, height uint, scale float64, title string) (fb *FrameBuffer) {
 	fb = new(FrameBuffer)
-	fb.fps = 24
 
+	fb.registers = make([]uint16, 8)
 	fb.OnTick = fb.onTick
 
 	fb.videoMode = sfWindow.NewSfVideoMode()
@@ -59,8 +60,8 @@ func NewFrameBuffer(width, height uint, scale float64, title string) (fb *FrameB
 }
 
 //NewPeripheral creates a framebuffer peripheral from a struct
-func (fb *FrameBuffer) NewPeripheral() (p *PeripheralManager.Peripheral) {
-	p = PeripheralManager.NewPeripheral(fb.OnTick, fb.OnRX, fb.GetTX)
+func (fb *FrameBuffer) NewPeripheral() (p *peripheralmanager.Peripheral) {
+	p = peripheralmanager.NewPeripheral(fb.OnTick, fb.OnRX, fb.GetTX)
 	return
 }
 

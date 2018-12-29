@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"os"
 
-	"GOR2VM/PeripheralManager"
+	peripheralmanager "GOR2VM/PeripheralManager"
 )
 
 type Core struct {
 	State *State
-	PMngr *PeripheralManager.PManager
+	PMngr *peripheralmanager.PManager
 
 	MUL uint32 //Multiplier
 
@@ -42,7 +42,7 @@ type State struct {
 func NewCore() (core *Core) {
 	core = new(Core)
 	core.State = new(State)
-	core.PMngr = PeripheralManager.NewPManager()
+	core.PMngr = peripheralmanager.NewPManager()
 
 	core.MUL = 60
 
@@ -53,7 +53,6 @@ func NewCore() (core *Core) {
 	core.State.Running = false
 	core.State.Icount = 0
 
-	core.PMngr.RegisterPeripheral(0, PeripheralManager.ExamplePeripheral())
 	return
 }
 
