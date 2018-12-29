@@ -18,7 +18,11 @@ By default, the program it compiles is a hello world
 
 ## GUI in detail
 ### Main window
-- ON/OFF: Toggles the running state of the VM manager ()
+- ON/OFF: Toggles the running state of the VM manager (Might not actually toggle the execution)
+- STEP: If VM execution is active, stops it. Steps the processor 1 instruction. Useful for debugging
+- RESET: Resets the registers and reloads the memory from the ROM
+- LOAD: Loads the selected file to the ROM and to memory
+- File Picker: Picks a file to load from
 
 [Manual](https://lbphacker.pw/powdertoy/R216/manual.md)  
   
