@@ -23,6 +23,7 @@ By default, the program it compiles is a hello world
 - RESET: Resets the registers and reloads the memory from the ROM
 - LOAD: Loads the selected file to the ROM and to memory
 - File Picker: Picks a file to load from
+- Multiplier value spinner: Sets the multiplier at which the processor runs at (execution speed is ((1000/17)*Multiplier)Hz)
 
 [Manual](https://lbphacker.pw/powdertoy/R216/manual.md)  
   
