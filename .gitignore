@@ -1,0 +1,5 @@
+*.glade~
+main
+*.code-workspace
+*.bin
+*.lua
