@@ -21,6 +21,7 @@ type FrameBuffer struct {
 	tempbuffer sfGraphics.Struct_SS_sfImage
 
 	registers []uint16 // LS(layer select)/MS(mode select), XR, YR, GPR0, GPR1, GPR2, GPR3, GPR4
+	//if LS is 0 then mode is text, LS 1 through 16 selects layers to access
 }
 
 //NewFrameBuffer creates a new framebuffer object (This is not the peripheral)
@@ -47,7 +48,14 @@ func NewFrameBuffer(width, height uint, scale float64, title string) (fb *FrameB
 
 	fb.OnRX = func(rx uint32) {
 		if rx&0x20000 == 0x20000 { //we are receiving data
-			//
+			if fb.registers[0] == 0 {
+				if rx&0xFFFF == 0x0004 { //EOT character
+					fb.registers[0] = 1
+					return
+				}
+				//display text:
+
+			}
 		} else {
 			fb.flushCall = true
 		}
