@@ -143,11 +143,11 @@ func init() {
 	///Peripherals:
 
 	peripherals_dumbConsole := DumbConsole.NewDumbConsole(termWindow_consoleView).NewPeripheral()
-	core.PMngr.RegisterPeripheral(0, peripherals_dumbConsole)
+	core.PMngr.RegisterPeripheral(1, peripherals_dumbConsole)
 
 	peripherals_frameBuffer_obj := framebuffer.NewFrameBuffer(320, 240, 2, "Ass")
 	peripherals_frameBuffer := peripherals_frameBuffer_obj.NewPeripheral()
-	core.PMngr.RegisterPeripheral(1, peripherals_frameBuffer)
+	core.PMngr.RegisterPeripheral(0, peripherals_frameBuffer)
 
 	///
 
