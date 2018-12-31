@@ -43,6 +43,7 @@ var (
 
 	framebufferWindow             *gtk.Window
 	framebufferWindow_framebuffer *gtk.DrawingArea
+	peripherals_frameBuffer_obj   *framebuffer.FrameBuffer
 	onAreaDraw                    func(widget *gtk.Widget, cr *cairo.Context) bool
 )
 
@@ -145,7 +146,7 @@ func init() {
 	peripherals_dumbConsole := DumbConsole.NewDumbConsole(termWindow_consoleView).NewPeripheral()
 	core.PMngr.RegisterPeripheral(1, peripherals_dumbConsole)
 
-	peripherals_frameBuffer_obj := framebuffer.NewFrameBuffer(320, 240, 2, "Ass")
+	peripherals_frameBuffer_obj = framebuffer.NewFrameBuffer(320, 240, 2, "Ass")
 	peripherals_frameBuffer := peripherals_frameBuffer_obj.NewPeripheral()
 	core.PMngr.RegisterPeripheral(0, peripherals_frameBuffer)
 
@@ -219,6 +220,7 @@ func onReset() {
 func onDestroy() {
 	gtk.MainQuit()
 	core.Exit()
+	peripherals_frameBuffer_obj.DeInit()
 	os.Exit(0)
 }
 

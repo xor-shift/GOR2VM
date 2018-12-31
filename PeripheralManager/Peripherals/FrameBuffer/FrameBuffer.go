@@ -1,8 +1,9 @@
 package framebuffer
 
 import (
+	"github.com/veandco/go-sdl2/img"
+	"github.com/veandco/go-sdl2/sdl"
 	sfGraphics "gopkg.in/teh-cmc/go-sfml.v24/graphics"
-	sfSystem "gopkg.in/teh-cmc/go-sfml.v24/system"
 	sfWindow "gopkg.in/teh-cmc/go-sfml.v24/window"
 
 	peripheralmanager "GOR2VM/PeripheralManager"
@@ -15,12 +16,18 @@ type FrameBuffer struct {
 	GetTX     func() uint32
 	flushCall bool
 
-	videoMode  sfWindow.SfVideoMode
-	csettings  sfWindow.SfContextSettings
-	window     sfGraphics.SfWindow
-	mainbuffer sfGraphics.Struct_SS_sfImage
-	tempbuffer sfGraphics.Struct_SS_sfImage
-	fontSheet  sfGraphics.Struct_SS_sfImage
+	_videoMode  sfWindow.SfVideoMode
+	_csettings  sfWindow.SfContextSettings
+	_window     sfGraphics.SfWindow
+	_mainbuffer sfGraphics.Struct_SS_sfImage
+	_tempbuffer sfGraphics.Struct_SS_sfImage
+	_fontSheet  sfGraphics.Struct_SS_sfImage
+
+	window           *sdl.Window
+	surface          *sdl.Surface
+	renderer         *sdl.Renderer
+	fontSheet        *sdl.Surface
+	fontSheetTexture *sdl.Texture
 
 	width, height uint
 
@@ -37,25 +44,44 @@ func NewFrameBuffer(width, height uint, scale float64, title string) (fb *FrameB
 	fb.registers = make([]uint16, 8)
 	fb.OnTick = fb.onTick
 
-	fb.videoMode = sfWindow.NewSfVideoMode()
-	fb.videoMode.SetWidth(width)
-	fb.videoMode.SetHeight(height)
-	fb.videoMode.SetBitsPerPixel(32)
-	fb.csettings = sfWindow.NewSfContextSettings()
-	fb.window = sfGraphics.SfRenderWindow_create(fb.videoMode, title, uint(0), fb.csettings)
-	if sfWindow.SfWindow_isOpen(fb.window) <= 0 {
-		fb = nil
-		return
-	}
-	sfGraphics.SfRenderWindow_clear(fb.window, sfGraphics.GetSfBlack())
-	sfGraphics.SfRenderWindow_display(fb.window)
-	fb.mainbuffer = sfGraphics.SfImage_create(width, height)
-	fb.tempbuffer = sfGraphics.SfImage_create(width, height)
+	/// SDL stuff
 
-	fb.fontSheet = sfGraphics.SfImage_createFromFile("./data/font.png")
-	if fb.fontSheet == nil {
-		panic("h")
+	if err := sdl.Init(sdl.INIT_EVERYTHING); err != nil {
+		panic(err)
 	}
+
+	window, err := sdl.CreateWindow(title, sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
+		int32(width), int32(height), sdl.WINDOW_SHOWN)
+	if err != nil {
+		panic(err)
+	}
+	fb.window = window
+
+	surface, err := window.GetSurface()
+	if err != nil {
+		panic(err)
+	}
+	fb.surface = surface
+
+	renderer, err := sdl.CreateRenderer(fb.window, -1, sdl.RENDERER_ACCELERATED)
+	if err != nil {
+		panic(err)
+	}
+	fb.renderer = renderer
+
+	fontSheet, err := img.Load("./data/font.png")
+	if err != nil {
+		panic(err)
+	}
+	fb.fontSheet = fontSheet
+
+	fontSheetTexture, err := fb.renderer.CreateTextureFromSurface(fb.fontSheet)
+	if err != nil {
+		panic(err)
+	}
+	fb.fontSheetTexture = fontSheetTexture
+
+	///
 
 	fb.OnRX = func(rx uint32) {
 		if rx&0x20000 == 0x20000 { //we are receiving data
@@ -81,9 +107,11 @@ func (fb *FrameBuffer) NewPeripheral() (p *peripheralmanager.Peripheral) {
 
 //DeInit deinitialises the framebuffer to free up memory
 func (fb *FrameBuffer) DeInit() {
-	sfWindow.DeleteSfVideoMode(fb.videoMode)
-	sfWindow.DeleteSfContextSettings(fb.csettings)
-	sfWindow.SfWindow_destroy(fb.window)
+	fb.fontSheetTexture.Destroy()
+	fb.fontSheet.Free()
+	fb.renderer.Destroy()
+	fb.window.Destroy()
+	sdl.Quit()
 }
 
 func (fb *FrameBuffer) draw() {
@@ -91,67 +119,51 @@ func (fb *FrameBuffer) draw() {
 }
 
 func (fb *FrameBuffer) onTick() {
-	maxColumns := fb.width / (((sfSystem.SwigcptrSfVector2u)(fb.fontSheet.Swigcptr())).GetX() + 16) / 16
-	maxRows := fb.height / (((sfSystem.SwigcptrSfVector2u)(fb.fontSheet.Swigcptr())).GetY() + 16) / 16
+	width, height := fb.window.GetSize()
+	fontwidth, fontheight := fb.fontSheet.W/16, fb.fontSheet.H/16
+	maxColumns := width / (fontwidth + 1)
+	maxRows := height / (fontheight + 1)
 
-	sfGraphics.SfRenderWindow_clear(fb.window, sfGraphics.GetSfBlack())
+	fb.renderer.Clear()
+	fb.renderer.SetDrawColor(0, 0, 0, 255)
+	fb.renderer.FillRect(&sdl.Rect{0, 0, width, height})
 
 	if fb.flushCall {
-		fb.mainbuffer = fb.tempbuffer
 		fb.flushCall = false
 	} else {
 		return
 	}
 
 	if fb.registers[0] == 0 {
-		for row := uint(0); row <= maxRows; row++ {
-			for col := uint(0); col <= maxColumns; col++ {
-				pix := sfGraphics.SfImage_getPixel(fb.tempbuffer, uint(col), uint(row))
-				val := pix.GetR()
+		for row := int32(0); row <= maxRows; row++ {
+			for col := int32(0); col <= maxColumns; col++ {
 
-				trow := (val & 0xF0) >> 4
-				tcol := val & 0xF
-				posx := tcol * 17
-				posy := trow * 17
-
-				intr := sfGraphics.NewSfIntRect()
-				intr.SetLeft(int(posx))
-				intr.SetTop(int(posy))
-				intr.SetWidth(16)
-				intr.SetWidth(16)
-
-				tex := sfGraphics.SfTexture_createFromImage(fb.fontSheet, intr)
-				spr := sfGraphics.SfSprite_create()
-				sfGraphics.SfSprite_setTexture(spr, tex, 0)
-
-				pos := sfSystem.NewSfVector2f()
-				pos.SetX(float32(posx))
-				pos.SetY(float32(posy))
-
-				sfGraphics.SfSprite_setPosition(spr, pos)
 			}
 		}
 	}
-	sfGraphics.SfRenderWindow_display(fb.window)
+
+	fb.renderer.Present()
+	fb.window.UpdateSurface()
 }
 
 func (fb *FrameBuffer) processCharacter(chr uint16) {
-	maxColumns := fb.width / (((sfSystem.SwigcptrSfVector2u)(fb.fontSheet.Swigcptr())).GetX() + 16) / 16 //thank you go and go-sfml, for this abomination
-	maxRows := fb.height / (((sfSystem.SwigcptrSfVector2u)(fb.fontSheet.Swigcptr())).GetY() + 16) / 16   //I spent like 10 minutes trying to figure out how to make a vector a proper vector and not some bullshit sfGraphics vector
-	//fb.width and height were actually workarounds before I realised that I needed to figure this out
+	width, height := fb.window.GetSize()
+	fontwidth, fontheight := fb.fontSheet.W/16, fb.fontSheet.H/16
+	maxColumns := width / (fontwidth + 1)
+	maxRows := height / (fontheight + 1)
 
 	switch chr & 0xF000 {
 	case 0x0000:
-		if uint(fb.registers[1]) > maxColumns {
+		if int32(fb.registers[1]) > maxColumns {
 			fb.registers[1] = 0
 			fb.registers[2]++
 		}
 
-		if uint(fb.registers[2]) > maxRows {
+		if int32(fb.registers[2]) > maxRows {
 			fb.registers[2]--
-			for row := uint(1); row <= maxRows; row++ {
-				for col := uint(0); col <= maxColumns; col++ {
-					sfGraphics.SfImage_setPixel(fb.tempbuffer, uint(col), uint(row-1), sfGraphics.SfImage_getPixel(fb.tempbuffer, uint(col), uint(row)))
+			for row := int32(1); row <= maxRows; row++ {
+				for col := int32(0); col <= maxColumns; col++ {
+					sfGraphics.SfImage_setPixel(fb._tempbuffer, uint(col), uint(row-1), sfGraphics.SfImage_getPixel(fb._tempbuffer, uint(col), uint(row)))
 				}
 			}
 		}
@@ -159,7 +171,7 @@ func (fb *FrameBuffer) processCharacter(chr uint16) {
 		if chr&0xFF >= 0x20 || chr&0xFF <= 0x7E {
 			charColorHolder := sfGraphics.NewSfColor()
 			charColorHolder.SetR(uint8(chr & 0xFF))
-			sfGraphics.SfImage_setPixel(fb.tempbuffer, uint(fb.registers[1]), uint(fb.registers[2]), charColorHolder)
+			sfGraphics.SfImage_setPixel(fb._tempbuffer, uint(fb.registers[1]), uint(fb.registers[2]), charColorHolder)
 			fb.registers[1]++
 		} else {
 			if chr == 0x0004 { //EOT character
