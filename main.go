@@ -48,7 +48,7 @@ var (
 )
 
 func init() {
-	runtime.LockOSThread() //for sfml
+	runtime.LockOSThread()
 	builder_signals = make(map[string]interface{})
 	//  builder_signals[""] =
 	builder_signals["onToggle"] = func() { core.State.Running = !core.State.Running }
@@ -146,10 +146,6 @@ func init() {
 	peripherals_dumbConsole := DumbConsole.NewDumbConsole(termWindow_consoleView).NewPeripheral()
 	core.PMngr.RegisterPeripheral(1, peripherals_dumbConsole)
 
-	peripherals_frameBuffer_obj = framebuffer.NewFrameBuffer(320, 240, 2, "Ass")
-	peripherals_frameBuffer := peripherals_frameBuffer_obj.NewPeripheral()
-	core.PMngr.RegisterPeripheral(0, peripherals_frameBuffer)
-
 	///
 
 	glib.TimeoutAdd(17, func() bool { //~60Hz (58)
@@ -182,6 +178,10 @@ func main() {
 	mainWindow.ShowAll()
 	termWindow.ShowAll()
 	inspectorWindow.ShowAll()
+
+	peripherals_frameBuffer_obj = framebuffer.NewFrameBuffer(320, 240, 2, "Ass")
+	peripherals_frameBuffer := peripherals_frameBuffer_obj.NewPeripheral()
+	core.PMngr.RegisterPeripheral(0, peripherals_frameBuffer)
 	gtk.Main()
 }
 
